@@ -100,121 +100,118 @@
     </div>
 
     <script>
-        const API_URL = 'https://proyecto-dashboard.onrender.com'; // RECUERDA: Debe ser tu URL de Render
-        const dropArea = document.getElementById('drop-area');
-        const fileInput = document.getElementById('file-input');
-        const loader = document.getElementById('loader');
-        const chartsContainer = document.getElementById('charts-container');
-        let bpChart, glucoseChart, weightChart;
+    // Referencias a los elementos del DOM
+    const API_URL = 'https://panel-salud-api.onrender.com'; // Asegúrate de que esta URL es la tuya
+    const dropArea = document.getElementById('drop-area');
+    const fileInput = document.getElementById('file-input');
+    const loader = document.getElementById('loader');
+    const chartsContainer = document.getElementById('charts-container');
+    
+    // Variables globales para las instancias de los gráficos
+    let bpChart, glucoseChart, weightChart;
 
-        // --- Lógica del Drag and Drop ---
-        dropArea.addEventListener('click', () => fileInput.click());
-        fileInput.addEventListener('change', () => handleFiles(fileInput.files));
-        ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eName => dropArea.addEventListener(eName, preventDefaults));
-        ['dragenter', 'dragover'].forEach(eName => dropArea.addEventListener(eName, () => dropArea.classList.add('highlight')));
-        ['dragleave', 'drop'].forEach(eName => dropArea.addEventListener(eName, () => dropArea.classList.remove('highlight')));
-        dropArea.addEventListener('drop', (e) => handleFiles(e.dataTransfer.files));
-        
-        function preventDefaults(e) { e.preventDefault(); e.stopPropagation(); }
+    // --- MANEJO DE ARCHIVOS ---
 
-        async function handleFiles(files) {
-            // (Esta función es la misma que antes)
+    // Función principal que se activa al subir un archivo
+    async function handleFile(file) {
+        if (!file || !file.name.endsWith('.xlsx')) {
+            alert('Por favor, selecciona un archivo Excel (.xlsx).');
+            return;
         }
-        
-        // --- El resto del script... igual que antes, pero actualizando el manejo de datos ---
 
-        async function handleFiles(files) { // Copia esta función actualizada entera
-            const file = files[0];
-            if (!file) return;
+        loader.style.display = 'block';
+        chartsContainer.style.display = 'none';
 
-            loader.style.display = 'block';
-            chartsContainer.style.display = 'none'; // Ocultar gráficos viejos
-            
-            const formData = new FormData();
-            formData.append('file', file);
-            
-            try {
-                const response = await fetch(`${API_URL}/upload-data`, {
-                    method: 'POST',
-                    body: formData,
-                });
+        const formData = new FormData();
+        formData.append('file', file);
 
-                if (!response.ok) {
-                    const error = await response.json();
-                    throw new Error(error.detail);
-                }
-                
-                const result = await response.json();
-                chartsContainer.style.display = 'grid'; // Mostrar el contenedor de gráficos
-                
-                // Nuevas funciones
-                displayStats(result.data); 
-                createCharts(result.data);
+        try {
+            // Realizar la petición POST a nuestra API de Render
+            const response = await fetch(`${API_URL}/upload-data`, {
+                method: 'POST',
+                body: formData,
+            });
 
-            } catch (error) {
-                alert(`Error: ${error.message}`);
-            } finally {
-                loader.style.display = 'none';
+            // Si la respuesta no es OK (ej. error 500 del servidor), lanza un error
+            if (!response.ok) {
+                const errorData = await response.json();
+                throw new Error(errorData.detail || 'Ocurrió un error en el servidor.');
             }
-        };
-
-        function displayStats(data) { // Función NUEVA
-            // Presión Arterial
-            const sistolica = data.map(d => d['PA Sistólica']);
-            const diastolica = data.map(d => d['PA Diastólica']);
-            const avgSistolica = (sistolica.reduce((a, b) => a + b, 0) / sistolica.length).toFixed(0);
-            const avgDiastolica = (diastolica.reduce((a, b) => a + b, 0) / diastolica.length).toFixed(0);
             
-            document.getElementById('bp-stats').innerHTML = `
-                <div class="stat"><p>Última Medición</p><h3>${sistolica[sistolica.length - 1]} / ${diastolica[diastolica.length - 1]}</h3></div>
-                <div class="stat"><p>Promedio</p><h3>${avgSistolica} / ${avgDiastolica}</h3></div>
-            `;
-
-            // Glucosa
-            const glucosa = data.map(d => d['Glucosa (mg/dL)']);
-            const avgGlucosa = (glucosa.reduce((a,b) => a+b, 0) / glucosa.length).toFixed(0);
-
-             document.getElementById('glucose-stats').innerHTML = `
-                <div class="stat"><p>Última Medición</p><h3>${glucosa[glucosa.length - 1]} mg/dL</h3></div>
-                <div class="stat"><p>Promedio</p><h3>${avgGlucosa} mg/dL</h3></div>
-            `;
+            // Si la respuesta es OK, procesa los datos
+            const result = await response.json();
+            chartsContainer.style.display = 'grid';
             
-            // Peso
-            const peso = data.map(d => d['Peso (kg)']);
-            document.getElementById('weight-stats').innerHTML = `
-                <div class="stat"><p>Último Registro</p><h3>${peso[peso.length - 1]} kg</h3></div>
-                <div class="stat"><p>Cambio Total</p><h3>${(peso[peso.length-1] - peso[0]).toFixed(1)} kg</h3></div>
-            `;
+            // Llama a las funciones para mostrar los datos
+            displayStats(result.data); 
+            createCharts(result.data);
+
+        } catch (error) {
+            // Captura cualquier error (de red o del servidor) y muéstralo
+            alert(`Error: ${error.message}`);
+        } finally {
+            // Siempre oculta el cargador al final
+            loader.style.display = 'none';
         }
+    }
 
-        function createCharts(data) { // El resto de `createCharts` es idéntico a antes
-            const labels = data.map(d => d.Fecha);
-            if (bpChart) bpChart.destroy();
-            if (glucoseChart) glucoseChart.destroy();
-            if (weightChart) weightChart.destroy();
+    // --- FUNCIONES DE CÁLCULO Y VISUALIZACIÓN ---
+    
+    // Calcula y muestra las estadísticas clave
+    function displayStats(data) {
+        if (!data || data.length === 0) return;
+        
+        // ... (código idéntico a antes para Presión, Glucosa y Peso) ...
+        const sistolica = data.map(d => d['PA Sistólica']);
+        const diastolica = data.map(d => d['PA Diastólica']);
+        const avgSistolica = (sistolica.reduce((a, b) => a + b, 0) / sistolica.length).toFixed(0);
+        const avgDiastolica = (diastolica.reduce((a, b) => a + b, 0) / diastolica.length).toFixed(0);
+        document.getElementById('bp-stats').innerHTML = `
+            <div class="stat"><p>Última</p><h3>${sistolica[sistolica.length - 1]} / ${diastolica[diastolica.length - 1]}</h3></div>
+            <div class="stat"><p>Promedio</p><h3>${avgSistolica} / ${avgDiastolica}</h3></div>`;
+        const glucosa = data.map(d => d['Glucosa (mg/dL)']);
+        const avgGlucosa = (glucosa.reduce((a, b) => a + b, 0) / glucosa.length).toFixed(0);
+        document.getElementById('glucose-stats').innerHTML = `
+            <div class="stat"><p>Última</p><h3>${glucosa[glucosa.length - 1]} mg/dL</h3></div>
+            <div class="stat"><p>Promedio</p><h3>${avgGlucosa} mg/dL</h3></div>`;
+        const peso = data.map(d => d['Peso (kg)']);
+        document.getElementById('weight-stats').innerHTML = `
+            <div class="stat"><p>Último</p><h3>${peso[peso.length - 1]} kg</h3></div>
+            <div class="stat"><p>Cambio</p><h3>${(peso[peso.length-1] - peso[0]).toFixed(1)} kg</h3></div>`;
+    }
 
-            // Gráfico de Presión Arterial
-            const bpCtx = document.getElementById('bpChart').getContext('2d');
-            bpChart = new Chart(bpCtx, {
-                type: 'line', data: { labels: labels, datasets: [
-                        { label: 'Sistólica', data: data.map(d => d['PA Sistólica']), borderColor: 'rgba(211, 47, 47, 1)', tension: 0.1 },
-                        { label: 'Diastólica', data: data.map(d => d['PA Diastólica']), borderColor: 'rgba(25, 118, 210, 1)', tension: 0.1 } ] }
-            });
+    // Crea o actualiza los gráficos
+    function createCharts(data) {
+        const labels = data.map(d => d.Fecha);
+        if (bpChart) bpChart.destroy();
+        if (glucoseChart) glucoseChart.destroy();
+        if (weightChart) weightChart.destroy();
 
-            // Gráfico de Glucosa
-            const glucoseCtx = document.getElementById('glucoseChart').getContext('2d');
-            glucoseChart = new Chart(glucoseCtx, {
-                type: 'line', data: { labels: labels, datasets: [
-                        { label: 'Glucosa (mg/dL)', data: data.map(d => d['Glucosa (mg/dL)']), borderColor: 'rgba(56, 142, 60, 1)', tension: 0.1 }] }
-            });
-            
-            // Gráfico de Peso
-            const weightCtx = document.getElementById('weightChart').getContext('2d');
-            weightChart = new Chart(weightCtx, {
-                type: 'bar', data: { labels: labels, datasets: [
-                        { label: 'Peso (kg)', data: data.map(d => d['Peso (kg)']), backgroundColor: 'rgba(123, 31, 162, 0.8)' }] }
-            });
-        }
-    </script>
+        // (código de creación de gráficos idéntico a antes)
+        const bpCtx = document.getElementById('bpChart').getContext('2d');
+        bpChart = new Chart(bpCtx, { type: 'line', data: { labels: labels, datasets: [{ label: 'Sistólica', data: data.map(d => d['PA Sistólica']), borderColor: 'rgba(211, 47, 47, 1)', tension: 0.1 }, { label: 'Diastólica', data: data.map(d => d['PA Diastólica']), borderColor: 'rgba(25, 118, 210, 1)', tension: 0.1 }] }});
+        const glucoseCtx = document.getElementById('glucoseChart').getContext('2d');
+        glucoseChart = new Chart(glucoseCtx, { type: 'line', data: { labels: labels, datasets: [{ label: 'Glucosa (mg/dL)', data: data.map(d => d['Glucosa (mg/dL)']), borderColor: 'rgba(56, 142, 60, 1)', tension: 0.1 }] }});
+        const weightCtx = document.getElementById('weightChart').getContext('2d');
+        weightChart = new Chart(weightCtx, { type: 'bar', data: { labels: labels, datasets: [{ label: 'Peso (kg)', data: data.map(d => d['Peso (kg)']), backgroundColor: 'rgba(123, 31, 162, 0.8)' }] }});
+    }
+
+    // --- EVENT LISTENERS (ESCUCHADORES DE EVENTOS) ---
+
+    // Funciones para prevenir comportamientos por defecto del navegador al arrastrar
+    function preventDefaults(e) {
+        e.preventDefault();
+        e.stopPropagation();
+    }
+    
+    // Activar los eventos para el área de "drag and drop"
+    dropArea.addEventListener('click', () => fileInput.click());
+    fileInput.addEventListener('change', (e) => handleFile(e.target.files[0]));
+    ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => dropArea.addEventListener(eventName, preventDefaults));
+    ['dragenter', 'dragover'].forEach(eventName => dropArea.addEventListener(eventName, () => dropArea.classList.add('highlight')));
+    ['dragleave', 'drop'].forEach(eventName => dropArea.addEventListener(eventName, () => dropArea.classList.remove('highlight')));
+    dropArea.addEventListener('drop', (e) => handleFile(e.dataTransfer.files[0]), false);
+
+</script>
 </body>
 </html>
