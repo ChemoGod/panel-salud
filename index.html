@@ -1,53 +1,139 @@
-<!-- dashboard.html -->
 <!DOCTYPE html>
 <html lang="es">
 <head>
     <meta charset="UTF-8">
-    <title>Panel de Datos de Salud</title>
-    <!-- Incluimos la librería de gráficos Chart.js -->
+    <title>Panel de Datos de Salud (Mejorado)</title>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <style>
-        body { font-family: sans-serif; max-width: 900px; margin: auto; padding: 20px; }
-        .chart-container { margin-top: 30px; }
-        #loader { display: none; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+            background-color: #f0f2f5;
+            color: #1c1e21;
+            margin: 0;
+            padding: 20px;
+        }
+        .container { max-width: 1200px; margin: auto; }
+        .header { text-align: center; margin-bottom: 30px; }
+        .header h1 { color: #0d47a1; }
+
+        /* Mejora 3: Área de carga con drag-and-drop */
+        #drop-area {
+            border: 2px dashed #007bff;
+            border-radius: 10px;
+            padding: 40px;
+            text-align: center;
+            margin-bottom: 20px;
+            background-color: #fff;
+            cursor: pointer;
+            transition: background-color 0.2s;
+        }
+        #drop-area.highlight { background-color: #e9f5ff; }
+        #drop-area p { margin: 0; color: #555; font-size: 1.1em; }
+
+        #file-input { display: none; }
+        #loader { display: none; text-align: center; padding: 20px; }
+        
+        .charts-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(350px, 1fr));
+            gap: 20px;
+        }
+
+        /* Mejora 2: Diseño de "Tarjeta" */
+        .card {
+            background-color: #fff;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+            padding: 20px;
+            transition: box-shadow 0.3s;
+        }
+        .card:hover { box-shadow: 0 4px 12px rgba(0,0,0,0.1); }
+        .card h2 { margin-top: 0; color: #333; }
+        
+        /* Mejora 4: Estilo para estadísticas */
+        .stats-container {
+            display: flex;
+            justify-content: space-around;
+            text-align: center;
+            margin: 10px 0 20px 0;
+            padding: 10px;
+            background: #f9f9f9;
+            border-radius: 5px;
+        }
+        .stat p { margin: 0; font-size: 0.9em; color: #666; }
+        .stat h3 { margin: 5px 0 0 0; color: #0056b3; }
+
     </style>
 </head>
 <body>
-    <h1>Visualizador de Datos de Salud Personalizados</h1>
-    <p>Sube tu archivo <strong>datos_salud.xlsx</strong> para generar los gráficos.</p>
-    <input type="file" id="file-input" accept=".xlsx">
-    <div id="loader"><p>Cargando datos...</p></div>
+    <div class="container">
+        <div class="header">
+            <h1>Panel de Datos de Salud Personalizados</h1>
+        </div>
+        
+        <div id="drop-area">
+            <p>Arrastra y suelta tu archivo <strong>datos_salud.xlsx</strong> aquí, o haz clic para seleccionarlo.</p>
+            <input type="file" id="file-input" accept=".xlsx">
+        </div>
 
-    <div class="chart-container">
-        <h2>Presión Arterial (mmHg)</h2>
-        <canvas id="bpChart"></canvas>
-    </div>
-    <div class="chart-container">
-        <h2>Glucosa en Sangre (mg/dL)</h2>
-        <canvas id="glucoseChart"></canvas>
-    </div>
-    <div class="chart-container">
-        <h2>Peso (kg)</h2>
-        <canvas id="weightChart"></canvas>
+        <div id="loader">
+            <p>Cargando y procesando datos...</p> <!-- Aquí podrías añadir un spinner SVG/CSS -->
+        </div>
+
+        <div id="charts-container" class="charts-grid" style="display:none;">
+            <div class="card">
+                <h2>Presión Arterial (mmHg)</h2>
+                <div id="bp-stats" class="stats-container"></div>
+                <canvas id="bpChart"></canvas>
+            </div>
+            <div class="card">
+                <h2>Glucosa (mg/dL)</h2>
+                <div id="glucose-stats" class="stats-container"></div>
+                <canvas id="glucoseChart"></canvas>
+            </div>
+            <div class="card">
+                <h2>Peso (kg)</h2>
+                <div id="weight-stats" class="stats-container"></div>
+                <canvas id="weightChart"></canvas>
+            </div>
+        </div>
     </div>
 
     <script>
-        const API_URL = 'https://panel-salud.onrender.com';
+        const API_URL = 'https://proyecto-dashboard.onrender.com'; // RECUERDA: Debe ser tu URL de Render
+        const dropArea = document.getElementById('drop-area');
         const fileInput = document.getElementById('file-input');
         const loader = document.getElementById('loader');
+        const chartsContainer = document.getElementById('charts-container');
         let bpChart, glucoseChart, weightChart;
 
-        // Esta función se activa cuando el usuario elige un archivo
-        fileInput.addEventListener('change', async (event) => {
-            const file = event.target.files[0];
+        // --- Lógica del Drag and Drop ---
+        dropArea.addEventListener('click', () => fileInput.click());
+        fileInput.addEventListener('change', () => handleFiles(fileInput.files));
+        ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eName => dropArea.addEventListener(eName, preventDefaults));
+        ['dragenter', 'dragover'].forEach(eName => dropArea.addEventListener(eName, () => dropArea.classList.add('highlight')));
+        ['dragleave', 'drop'].forEach(eName => dropArea.addEventListener(eName, () => dropArea.classList.remove('highlight')));
+        dropArea.addEventListener('drop', (e) => handleFiles(e.dataTransfer.files));
+        
+        function preventDefaults(e) { e.preventDefault(); e.stopPropagation(); }
+
+        async function handleFiles(files) {
+            // (Esta función es la misma que antes)
+        }
+        
+        // --- El resto del script... igual que antes, pero actualizando el manejo de datos ---
+
+        async function handleFiles(files) { // Copia esta función actualizada entera
+            const file = files[0];
             if (!file) return;
+
             loader.style.display = 'block';
+            chartsContainer.style.display = 'none'; // Ocultar gráficos viejos
             
             const formData = new FormData();
             formData.append('file', file);
             
             try {
-                // Envía el archivo a nuestro backend de Python
                 const response = await fetch(`${API_URL}/upload-data`, {
                     method: 'POST',
                     body: formData,
@@ -58,20 +144,51 @@
                     throw new Error(error.detail);
                 }
                 
-                // Recibe los datos ya procesados en formato JSON
                 const result = await response.json();
-                createCharts(result.data); // Llama a la función para dibujar
+                chartsContainer.style.display = 'grid'; // Mostrar el contenedor de gráficos
+                
+                // Nuevas funciones
+                displayStats(result.data); 
+                createCharts(result.data);
 
             } catch (error) {
                 alert(`Error: ${error.message}`);
             } finally {
                 loader.style.display = 'none';
             }
-        });
-        
-        function createCharts(data) {
-            const labels = data.map(d => d.Fecha);
+        };
 
+        function displayStats(data) { // Función NUEVA
+            // Presión Arterial
+            const sistolica = data.map(d => d['PA Sistólica']);
+            const diastolica = data.map(d => d['PA Diastólica']);
+            const avgSistolica = (sistolica.reduce((a, b) => a + b, 0) / sistolica.length).toFixed(0);
+            const avgDiastolica = (diastolica.reduce((a, b) => a + b, 0) / diastolica.length).toFixed(0);
+            
+            document.getElementById('bp-stats').innerHTML = `
+                <div class="stat"><p>Última Medición</p><h3>${sistolica[sistolica.length - 1]} / ${diastolica[diastolica.length - 1]}</h3></div>
+                <div class="stat"><p>Promedio</p><h3>${avgSistolica} / ${avgDiastolica}</h3></div>
+            `;
+
+            // Glucosa
+            const glucosa = data.map(d => d['Glucosa (mg/dL)']);
+            const avgGlucosa = (glucosa.reduce((a,b) => a+b, 0) / glucosa.length).toFixed(0);
+
+             document.getElementById('glucose-stats').innerHTML = `
+                <div class="stat"><p>Última Medición</p><h3>${glucosa[glucosa.length - 1]} mg/dL</h3></div>
+                <div class="stat"><p>Promedio</p><h3>${avgGlucosa} mg/dL</h3></div>
+            `;
+            
+            // Peso
+            const peso = data.map(d => d['Peso (kg)']);
+            document.getElementById('weight-stats').innerHTML = `
+                <div class="stat"><p>Último Registro</p><h3>${peso[peso.length - 1]} kg</h3></div>
+                <div class="stat"><p>Cambio Total</p><h3>${(peso[peso.length-1] - peso[0]).toFixed(1)} kg</h3></div>
+            `;
+        }
+
+        function createCharts(data) { // El resto de `createCharts` es idéntico a antes
+            const labels = data.map(d => d.Fecha);
             if (bpChart) bpChart.destroy();
             if (glucoseChart) glucoseChart.destroy();
             if (weightChart) weightChart.destroy();
@@ -79,34 +196,23 @@
             // Gráfico de Presión Arterial
             const bpCtx = document.getElementById('bpChart').getContext('2d');
             bpChart = new Chart(bpCtx, {
-                type: 'line',
-                data: {
-                    labels: labels,
-                    datasets: [
-                        { label: 'Sistólica', data: data.map(d => d['PA Sistólica']), borderColor: 'red' },
-                        { label: 'Diastólica', data: data.map(d => d['PA Diastólica']), borderColor: 'blue' }
-                    ]
-                }
+                type: 'line', data: { labels: labels, datasets: [
+                        { label: 'Sistólica', data: data.map(d => d['PA Sistólica']), borderColor: 'rgba(211, 47, 47, 1)', tension: 0.1 },
+                        { label: 'Diastólica', data: data.map(d => d['PA Diastólica']), borderColor: 'rgba(25, 118, 210, 1)', tension: 0.1 } ] }
             });
 
             // Gráfico de Glucosa
             const glucoseCtx = document.getElementById('glucoseChart').getContext('2d');
             glucoseChart = new Chart(glucoseCtx, {
-                type: 'line',
-                data: {
-                    labels: labels,
-                    datasets: [{ label: 'Glucosa (mg/dL)', data: data.map(d => d['Glucosa (mg/dL)']), borderColor: 'green' }]
-                }
+                type: 'line', data: { labels: labels, datasets: [
+                        { label: 'Glucosa (mg/dL)', data: data.map(d => d['Glucosa (mg/dL)']), borderColor: 'rgba(56, 142, 60, 1)', tension: 0.1 }] }
             });
             
             // Gráfico de Peso
             const weightCtx = document.getElementById('weightChart').getContext('2d');
             weightChart = new Chart(weightCtx, {
-                type: 'bar',
-                data: {
-                    labels: labels,
-                    datasets: [{ label: 'Peso (kg)', data: data.map(d => d['Peso (kg)']), backgroundColor: 'purple' }]
-                }
+                type: 'bar', data: { labels: labels, datasets: [
+                        { label: 'Peso (kg)', data: data.map(d => d['Peso (kg)']), backgroundColor: 'rgba(123, 31, 162, 0.8)' }] }
             });
         }
     </script>
