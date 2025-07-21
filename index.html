@@ -99,20 +99,22 @@
         </div>
     </div>
 
-    <script>
+    <!-- index.html (solo el script) -->
+<script>
     // Referencias a los elementos del DOM
-    const API_URL = 'https://panel-salud-api.onrender.com'; // Asegúrate de que esta URL es la tuya
-    const dropArea = document.getElementById('drop-area');
+    const API_URL = 'https://panel-salud-api.onrender.com'; // La URL de tu API en Render
     const fileInput = document.getElementById('file-input');
     const loader = document.getElementById('loader');
+    
+    // Contenedores de los gráficos
+    const bpCard = document.querySelector('#bpChart').parentElement;
+    const glucoseCard = document.querySelector('#glucoseChart').parentElement;
+    const weightCard = document.querySelector('#weightChart').parentElement;
+    
+    const dropArea = document.getElementById('drop-area'); // Área para arrastrar y soltar
     const chartsContainer = document.getElementById('charts-container');
     
-    // Variables globales para las instancias de los gráficos
-    let bpChart, glucoseChart, weightChart;
-
-    // --- MANEJO DE ARCHIVOS ---
-
-    // Función principal que se activa al subir un archivo
+    // --- MANEJO DE ARCHIVOS Y COMUNICACIÓN CON LA API ---
     async function handleFile(file) {
         if (!file || !file.name.endsWith('.xlsx')) {
             alert('Por favor, selecciona un archivo Excel (.xlsx).');
@@ -126,92 +128,102 @@
         formData.append('file', file);
 
         try {
-            // Realizar la petición POST a nuestra API de Render
             const response = await fetch(`${API_URL}/upload-data`, {
                 method: 'POST',
                 body: formData,
             });
 
-            // Si la respuesta no es OK (ej. error 500 del servidor), lanza un error
             if (!response.ok) {
                 const errorData = await response.json();
                 throw new Error(errorData.detail || 'Ocurrió un error en el servidor.');
             }
             
-            // Si la respuesta es OK, procesa los datos
             const result = await response.json();
-            chartsContainer.style.display = 'grid';
             
-            // Llama a las funciones para mostrar los datos
-            displayStats(result.data); 
-            createCharts(result.data);
+            // Cuando los datos lleguen, mostrar todo
+            chartsContainer.style.display = 'grid';
+            renderAllComponents(result.data);
 
         } catch (error) {
-            // Captura cualquier error (de red o del servidor) y muéstralo
             alert(`Error: ${error.message}`);
         } finally {
-            // Siempre oculta el cargador al final
             loader.style.display = 'none';
         }
     }
 
-    // --- FUNCIONES DE CÁLCULO Y VISUALIZACIÓN ---
-    
-    // Calcula y muestra las estadísticas clave
-    function displayStats(data) {
+    // --- FUNCIONES DE RENDERIZADO Y CÁLCULOS ---
+    function renderAllComponents(data) {
         if (!data || data.length === 0) return;
         
-        // ... (código idéntico a antes para Presión, Glucosa y Peso) ...
+        // Renderizar las estadísticas
+        const stats = calculateStats(data);
+        displayStats(stats);
+        
+        // Renderizar los gráficos
+        createCharts(data, stats);
+    }
+
+    function calculateStats(data) {
+        // ... (cálculos de estadísticas) ...
         const sistolica = data.map(d => d['PA Sistólica']);
         const diastolica = data.map(d => d['PA Diastólica']);
-        const avgSistolica = (sistolica.reduce((a, b) => a + b, 0) / sistolica.length).toFixed(0);
-        const avgDiastolica = (diastolica.reduce((a, b) => a + b, 0) / diastolica.length).toFixed(0);
-        document.getElementById('bp-stats').innerHTML = `
-            <div class="stat"><p>Última</p><h3>${sistolica[sistolica.length - 1]} / ${diastolica[diastolica.length - 1]}</h3></div>
-            <div class="stat"><p>Promedio</p><h3>${avgSistolica} / ${avgDiastolica}</h3></div>`;
         const glucosa = data.map(d => d['Glucosa (mg/dL)']);
-        const avgGlucosa = (glucosa.reduce((a, b) => a + b, 0) / glucosa.length).toFixed(0);
-        document.getElementById('glucose-stats').innerHTML = `
-            <div class="stat"><p>Última</p><h3>${glucosa[glucosa.length - 1]} mg/dL</h3></div>
-            <div class="stat"><p>Promedio</p><h3>${avgGlucosa} mg/dL</h3></div>`;
         const peso = data.map(d => d['Peso (kg)']);
-        document.getElementById('weight-stats').innerHTML = `
-            <div class="stat"><p>Último</p><h3>${peso[peso.length - 1]} kg</h3></div>
-            <div class="stat"><p>Cambio</p><h3>${(peso[peso.length-1] - peso[0]).toFixed(1)} kg</h3></div>`;
-    }
 
-    // Crea o actualiza los gráficos
-    function createCharts(data) {
-        const labels = data.map(d => d.Fecha);
-        if (bpChart) bpChart.destroy();
-        if (glucoseChart) glucoseChart.destroy();
-        if (weightChart) weightChart.destroy();
-
-        // (código de creación de gráficos idéntico a antes)
-        const bpCtx = document.getElementById('bpChart').getContext('2d');
-        bpChart = new Chart(bpCtx, { type: 'line', data: { labels: labels, datasets: [{ label: 'Sistólica', data: data.map(d => d['PA Sistólica']), borderColor: 'rgba(211, 47, 47, 1)', tension: 0.1 }, { label: 'Diastólica', data: data.map(d => d['PA Diastólica']), borderColor: 'rgba(25, 118, 210, 1)', tension: 0.1 }] }});
-        const glucoseCtx = document.getElementById('glucoseChart').getContext('2d');
-        glucoseChart = new Chart(glucoseCtx, { type: 'line', data: { labels: labels, datasets: [{ label: 'Glucosa (mg/dL)', data: data.map(d => d['Glucosa (mg/dL)']), borderColor: 'rgba(56, 142, 60, 1)', tension: 0.1 }] }});
-        const weightCtx = document.getElementById('weightChart').getContext('2d');
-        weightChart = new Chart(weightCtx, { type: 'bar', data: { labels: labels, datasets: [{ label: 'Peso (kg)', data: data.map(d => d['Peso (kg)']), backgroundColor: 'rgba(123, 31, 162, 0.8)' }] }});
-    }
-
-    // --- EVENT LISTENERS (ESCUCHADORES DE EVENTOS) ---
-
-    // Funciones para prevenir comportamientos por defecto del navegador al arrastrar
-    function preventDefaults(e) {
-        e.preventDefault();
-        e.stopPropagation();
+        return {
+            lastSistolica: sistolica[sistolica.length - 1],
+            lastDiastolica: diastolica[diastolica.length - 1],
+            avgSistolica: (sistolica.reduce((a, b) => a + b, 0) / sistolica.length).toFixed(0),
+            avgDiastolica: (diastolica.reduce((a, b) => a + b, 0) / diastolica.length).toFixed(0),
+            lastGlucosa: glucosa[glucosa.length - 1],
+            avgGlucosa: (glucosa.reduce((a,b) => a+b, 0) / glucosa.length).toFixed(0),
+            lastPeso: peso[peso.length - 1],
+            totalChangePeso: (peso[peso.length-1] - peso[0]).toFixed(1)
+        };
     }
     
-    // Activar los eventos para el área de "drag and drop"
+    function displayStats(stats) {
+        // ... (mostrar estadísticas en el HTML) ...
+        document.getElementById('bp-stats').innerHTML = `
+            <div class="stat"><p>Última</p><h3>${stats.lastSistolica} / ${stats.lastDiastolica}</h3></div>
+            <div class="stat"><p>Promedio</p><h3>${stats.avgSistolica} / ${stats.avgDiastolica}</h3></div>`;
+        document.getElementById('glucose-stats').innerHTML = `
+            <div class="stat"><p>Última</p><h3>${stats.lastGlucosa} mg/dL</h3></div>
+            <div class="stat"><p>Promedio</p><h3>${stats.avgGlucosa} mg/dL</h3></div>`;
+        document.getElementById('weight-stats').innerHTML = `
+            <div class="stat"><p>Último</p><h3>${stats.lastPeso} kg</h3></div>
+            <div class="stat"><p>Cambio</p><h3>${stats.totalChangePeso} kg</h3></div>`;
+    }
+
+    function createCharts(data, stats) {
+        const labels = data.map(d => d.Fecha);
+
+        // **ESTA ES LA PARTE CLAVE DE LA CORRECCIÓN**
+        // En lugar de `destroy`, eliminamos y recreamos el elemento <canvas>
+        bpCard.querySelector('canvas').remove();
+        bpCard.innerHTML += '<canvas id="bpChart"></canvas>';
+
+        glucoseCard.querySelector('canvas').remove();
+        glucoseCard.innerHTML += '<canvas id="glucoseChart"></canvas>';
+        
+        weightCard.querySelector('canvas').remove();
+        weightCard.innerHTML += '<canvas id="weightChart"></canvas>';
+
+        // Volvemos a crear los gráficos en los nuevos canvas
+        new Chart(document.getElementById('bpChart').getContext('2d'), { type: 'line', data: { labels: labels, datasets: [{ label: 'Sistólica', data: data.map(d => d['PA Sistólica']), borderColor: 'rgba(211, 47, 47, 1)'}, { label: 'Diastólica', data: data.map(d => d['PA Diastólica']), borderColor: 'rgba(25, 118, 210, 1)'}]}});
+        new Chart(document.getElementById('glucoseChart').getContext('2d'), { type: 'line', data: { labels: labels, datasets: [{ label: 'Glucosa (mg/dL)', data: data.map(d => d['Glucosa (mg/dL)']), borderColor: 'rgba(56, 142, 60, 1)'}]}});
+        new Chart(document.getElementById('weightChart').getContext('2d'), { type: 'bar', data: { labels: labels, datasets: [{ label: 'Peso (kg)', data: data.map(d => d['Peso (kg)']), backgroundColor: 'rgba(123, 31, 162, 0.8)'}]}});
+    }
+
+    // --- MANEJADORES DE EVENTOS DEL DOM ---
+    function preventDefaults(e) { e.preventDefault(); e.stopPropagation(); }
+    
     dropArea.addEventListener('click', () => fileInput.click());
     fileInput.addEventListener('change', (e) => handleFile(e.target.files[0]));
     ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => dropArea.addEventListener(eventName, preventDefaults));
     ['dragenter', 'dragover'].forEach(eventName => dropArea.addEventListener(eventName, () => dropArea.classList.add('highlight')));
     ['dragleave', 'drop'].forEach(eventName => dropArea.addEventListener(eventName, () => dropArea.classList.remove('highlight')));
-    dropArea.addEventListener('drop', (e) => handleFile(e.dataTransfer.files[0]), false);
-
+    dropArea.addEventListener('drop', (e) => handleFile(e.dataTransfer.files[0]));
 </script>
 </body>
 </html>
