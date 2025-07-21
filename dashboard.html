@@ -1,0 +1,114 @@
+<!-- dashboard.html -->
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <title>Panel de Datos de Salud</title>
+    <!-- Incluimos la librería de gráficos Chart.js -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        body { font-family: sans-serif; max-width: 900px; margin: auto; padding: 20px; }
+        .chart-container { margin-top: 30px; }
+        #loader { display: none; }
+    </style>
+</head>
+<body>
+    <h1>Visualizador de Datos de Salud Personalizados</h1>
+    <p>Sube tu archivo <strong>datos_salud.xlsx</strong> para generar los gráficos.</p>
+    <input type="file" id="file-input" accept=".xlsx">
+    <div id="loader"><p>Cargando datos...</p></div>
+
+    <div class="chart-container">
+        <h2>Presión Arterial (mmHg)</h2>
+        <canvas id="bpChart"></canvas>
+    </div>
+    <div class="chart-container">
+        <h2>Glucosa en Sangre (mg/dL)</h2>
+        <canvas id="glucoseChart"></canvas>
+    </div>
+    <div class="chart-container">
+        <h2>Peso (kg)</h2>
+        <canvas id="weightChart"></canvas>
+    </div>
+
+    <script>
+        const API_URL = 'http://127.0.0.1:8000';
+        const fileInput = document.getElementById('file-input');
+        const loader = document.getElementById('loader');
+        let bpChart, glucoseChart, weightChart;
+
+        // Esta función se activa cuando el usuario elige un archivo
+        fileInput.addEventListener('change', async (event) => {
+            const file = event.target.files[0];
+            if (!file) return;
+            loader.style.display = 'block';
+            
+            const formData = new FormData();
+            formData.append('file', file);
+            
+            try {
+                // Envía el archivo a nuestro backend de Python
+                const response = await fetch(`${API_URL}/upload-data`, {
+                    method: 'POST',
+                    body: formData,
+                });
+
+                if (!response.ok) {
+                    const error = await response.json();
+                    throw new Error(error.detail);
+                }
+                
+                // Recibe los datos ya procesados en formato JSON
+                const result = await response.json();
+                createCharts(result.data); // Llama a la función para dibujar
+
+            } catch (error) {
+                alert(`Error: ${error.message}`);
+            } finally {
+                loader.style.display = 'none';
+            }
+        });
+        
+        function createCharts(data) {
+            const labels = data.map(d => d.Fecha);
+
+            if (bpChart) bpChart.destroy();
+            if (glucoseChart) glucoseChart.destroy();
+            if (weightChart) weightChart.destroy();
+
+            // Gráfico de Presión Arterial
+            const bpCtx = document.getElementById('bpChart').getContext('2d');
+            bpChart = new Chart(bpCtx, {
+                type: 'line',
+                data: {
+                    labels: labels,
+                    datasets: [
+                        { label: 'Sistólica', data: data.map(d => d['PA Sistólica']), borderColor: 'red' },
+                        { label: 'Diastólica', data: data.map(d => d['PA Diastólica']), borderColor: 'blue' }
+                    ]
+                }
+            });
+
+            // Gráfico de Glucosa
+            const glucoseCtx = document.getElementById('glucoseChart').getContext('2d');
+            glucoseChart = new Chart(glucoseCtx, {
+                type: 'line',
+                data: {
+                    labels: labels,
+                    datasets: [{ label: 'Glucosa (mg/dL)', data: data.map(d => d['Glucosa (mg/dL)']), borderColor: 'green' }]
+                }
+            });
+            
+            // Gráfico de Peso
+            const weightCtx = document.getElementById('weightChart').getContext('2d');
+            weightChart = new Chart(weightCtx, {
+                type: 'bar',
+                data: {
+                    labels: labels,
+                    datasets: [{ label: 'Peso (kg)', data: data.map(d => d['Peso (kg)']), backgroundColor: 'purple' }]
+                }
+            });
+        }
+    </script>
+</body>
+</html>
