@@ -1,4 +1,4 @@
-od# main.py (Versión Corregida)
+# main.py (Versión Corregida)
 
 from fastapi import Depends, FastAPI, HTTPException, status, UploadFile, File
 from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
