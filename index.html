@@ -2,203 +2,189 @@
 <html lang="es">
 <head>
     <meta charset="UTF-8">
-    <title>Panel de Datos de Salud (Mejorado)</title>
+    <title>Panel de Salud Personalizado</title>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <style>
-        body {
-            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
-            background-color: #f0f2f5;
-            color: #1c1e21;
-            margin: 0;
-            padding: 20px;
-        }
+        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; background-color: #f0f2f5; margin: 0; padding: 20px; }
         .container { max-width: 1200px; margin: auto; }
-        .header { text-align: center; margin-bottom: 30px; }
-        .header h1 { color: #0d47a1; }
-
-        /* Mejora 3: Área de carga con drag-and-drop */
-        #drop-area {
-            border: 2px dashed #007bff;
-            border-radius: 10px;
-            padding: 40px;
-            text-align: center;
-            margin-bottom: 20px;
-            background-color: #fff;
-            cursor: pointer;
-            transition: background-color 0.2s;
-        }
-        #drop-area.highlight { background-color: #e9f5ff; }
-        #drop-area p { margin: 0; color: #555; font-size: 1.1em; }
-
-        #file-input { display: none; }
-        #loader { display: none; text-align: center; padding: 20px; }
+        .card { background-color: #fff; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.05); padding: 20px; margin-bottom:20px; }
+        #login-form { text-align: center; }
         
-        .charts-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(350px, 1fr));
-            gap: 20px;
-        }
-
-        /* Mejora 2: Diseño de "Tarjeta" */
-        .card {
-            background-color: #fff;
-            border-radius: 8px;
-            box-shadow: 0 2px 4px rgba(0,0,0,0.05);
-            padding: 20px;
-            transition: box-shadow 0.3s;
-        }
-        .card:hover { box-shadow: 0 4px 12px rgba(0,0,0,0.1); }
-        .card h2 { margin-top: 0; color: #333; }
+        /* Estilos del perfil */
+        .profile-header { display: flex; align-items: center; gap: 20px; border-bottom: 1px solid #ddd; padding-bottom: 15px; }
+        .profile-photo { width: 80px; height: 80px; border-radius: 50%; object-fit: cover; border: 3px solid #007bff; }
+        .profile-info h1 { margin: 0; color: #0d47a1; }
+        .profile-info p { margin: 5px 0 0 0; color: #555; }
         
-        /* Mejora 4: Estilo para estadísticas */
-        .stats-container {
-            display: flex;
-            justify-content: space-around;
-            text-align: center;
-            margin: 10px 0 20px 0;
-            padding: 10px;
-            background: #f9f9f9;
-            border-radius: 5px;
-        }
-        .stat p { margin: 0; font-size: 0.9em; color: #666; }
-        .stat h3 { margin: 5px 0 0 0; color: #0056b3; }
-
+        .charts-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(350px, 1fr)); gap: 20px; margin-top: 20px; }
+        /* El resto de estilos son similares a antes */
     </style>
 </head>
 <body>
     <div class="container">
-        <div class="header">
-            <h1>Panel de Datos de Salud Personalizados</h1>
-        </div>
-        
-        <div id="drop-area">
-            <p>Arrastra y suelta tu archivo <strong>datos_salud.xlsx</strong> aquí, o haz clic para seleccionarlo.</p>
-            <input type="file" id="file-input" accept=".xlsx">
-        </div>
-
-        <div id="loader">
-            <p>Cargando y procesando datos...</p> <!-- Aquí podrías añadir un spinner SVG/CSS -->
+        <!-- FORMULARIO DE LOGIN -->
+        <div id="login-section" class="card">
+            <h2>Iniciar Sesión</h2>
+            <p>Usuarios de prueba: paciente_a (pass_ana) o paciente_b (pass_luis)</p>
+            <input type="text" id="username" placeholder="Nombre de usuario" required><br><br>
+            <input type="password" id="password" placeholder="Contraseña" required><br><br>
+            <button id="login-button">Entrar</button>
+            <p id="login-error" style="color:red;"></p>
         </div>
 
-        <div id="charts-container" class="charts-grid" style="display:none;">
-            <div class="card">
-                <h2>Presión Arterial (mmHg)</h2>
-                <div id="bp-stats" class="stats-container"></div>
-                <canvas id="bpChart"></canvas>
+        <!-- PANEL DE CONTROL (Oculto hasta el login) -->
+        <div id="dashboard-section" style="display:none;">
+            <!-- Encabezado del Perfil -->
+            <div class="card profile-header">
+                <img id="profile-photo" src="" alt="Foto de perfil" class="profile-photo">
+                <div class="profile-info">
+                    <h1 id="profile-name"></h1>
+                    <p>Usuario: <span id="profile-username"></span> | <button id="logout-button">Cerrar Sesión</button></p>
+                </div>
             </div>
+
+            <!-- Área de subida de archivos -->
             <div class="card">
-                <h2>Glucosa (mg/dL)</h2>
-                <div id="glucose-stats" class="stats-container"></div>
-                <canvas id="glucoseChart"></canvas>
+                 <p>Sube tu archivo <strong>datos_salud.xlsx</strong> para generar o actualizar los gráficos.</p>
+                 <input type="file" id="file-input" accept=".xlsx">
             </div>
-            <div class="card">
-                <h2>Peso (kg)</h2>
-                <div id="weight-stats" class="stats-container"></div>
-                <canvas id="weightChart"></canvas>
+            
+            <!-- Contenedor de Gráficos -->
+            <div id="charts-container" class="charts-grid">
+                <div class="card"><h2>Presión Arterial (mmHg)</h2><div id="bp-stats"></div><canvas id="bpChart"></canvas></div>
+                <div class="card"><h2>Glucosa (mg/dL)</h2><div id="glucose-stats"></div><canvas id="glucoseChart"></canvas></div>
+                <div class="card"><h2>Peso (kg)</h2><div id="weight-stats"></div><canvas id="weightChart"></canvas></div>
             </div>
         </div>
     </div>
-
-    <!-- index.html (solo el script) -->
-<script>
-    // Referencias a los elementos del DOM
-    const API_URL = 'https://panel-salud.onrender.com'; // Por favor, verifica de nuevo que esta URL sea 100% idéntica a la de Render.
+    
+    <script>
+    // --- Referencias y Lógica de Autenticación (como en el ejemplo anterior) ---
+    const API_URL = 'https://tu-url-de-render.onrender.com'; // <- ¡NO OLVIDES CAMBIAR ESTO!
+    const loginSection = document.getElementById('login-section');
+    const dashboardSection = document.getElementById('dashboard-section');
+    const loginButton = document.getElementById('login-button');
+    const logoutButton = document.getElementById('logout-button');
     const fileInput = document.getElementById('file-input');
-    const loader = document.getElementById('loader');
-    
-    // Contenedores
-    const chartsContainer = document.getElementById('charts-container');
-    const bpCard = document.querySelector('#bpChart').parentElement;
-    const glucoseCard = document.querySelector('#glucoseChart').parentElement;
-    const weightCard = document.querySelector('#weightChart').parentElement;
-    
-    const dropArea = document.getElementById('drop-area');
 
-    // --- MANEJO DE ARCHIVOS Y COMUNICACIÓN CON LA API ---
-    async function handleFile(file) {
-        console.log("1. Función handleFile iniciada."); // Punto de control 1
+    // (Aquí iría la misma lógica de login, logout y las funciones de ayuda que usamos antes)
+    // ...
+    loginButton.addEventListener('click', async () => { /* ... misma lógica de login ... */ });
+    logoutButton.addEventListener('click', () => { /* ... misma lógica de logout ... */ });
 
-        if (!file || !file.name.endsWith('.xlsx')) {
-            alert('Por favor, selecciona un archivo Excel (.xlsx).');
-            return;
+     // Funciones de visibilidad
+    function showDashboard() {
+        loginSection.style.display = 'none';
+        dashboardSection.style.display = 'block';
+        fetchProfileAndData(); // <- Función clave nueva
+    }
+    function showLoginForm() {
+        loginSection.style.display = 'block';
+        dashboardSection.style.display = 'none';
+    }
+    
+    // Función de login
+    loginButton.addEventListener('click', async () => {
+        const username = document.getElementById('username').value;
+        const password = document.getElementById('password').value;
+        const formData = new URLSearchParams();
+        formData.append('username', username);
+        formData.append('password', password);
+        try {
+            const response = await fetch(`${API_URL}/token`, { method: 'POST', headers: {'Content-Type': 'application/x-www-form-urlencoded'}, body: formData });
+            if (!response.ok) throw new Error('Usuario o contraseña incorrectos.');
+            const data = await response.json();
+            localStorage.setItem('accessToken', data.access_token);
+            showDashboard();
+        } catch (error) { document.getElementById('login-error').textContent = error.message; }
+    });
+
+    // Función de logout
+    logoutButton.addEventListener('click', () => {
+        localStorage.removeItem('accessToken');
+        // Limpiar todo al salir
+        document.getElementById('profile-name').textContent = '';
+        document.getElementById('profile-photo').src = '';
+        document.querySelector('.charts-grid').style.display = 'none';
+        showLoginForm();
+    });
+
+    // --- LÓGICA NUEVA PARA EL PERFIL ---
+
+    async function fetchAPI(endpoint, options = {}) {
+        const token = localStorage.getItem('accessToken');
+        const headers = { 'Authorization': `Bearer ${token}`, ...options.headers };
+        const response = await fetch(`${API_URL}${endpoint}`, { ...options, headers });
+        if (!response.ok) {
+            if(response.status === 401) { // Si el token expiró, cerrar sesión
+                logoutButton.click();
+            }
+            const error = await response.json();
+            throw new Error(error.detail || 'Error en la petición a la API');
         }
+        return response.json();
+    }
+    
+    // Función que carga todo: perfil Y datos de salud
+    async function fetchProfileAndData() {
+        try {
+            // Pedir los datos del perfil
+            const profile = await fetchAPI('/users/me');
+            document.getElementById('profile-name').textContent = profile.full_name;
+            document.getElementById('profile-username').textContent = profile.username;
+            document.getElementById('profile-photo').src = profile.photo_url;
 
-        loader.style.display = 'block';
-        chartsContainer.style.display = 'none';
+            // Pedir los datos de salud
+            const healthData = await fetchAPI('/get-data');
+            if (healthData && healthData.length > 0) {
+                 document.querySelector('.charts-grid').style.display = 'grid';
+                 renderAllComponents(healthData);
+            } else {
+                 document.querySelector('.charts-grid').style.display = 'none'; // Ocultar si no hay datos
+            }
 
+        } catch (error) {
+            console.error('Error al cargar datos:', error);
+        }
+    }
+    
+    // Manejo de la subida de archivos (Ahora usa la función fetchAPI)
+    fileInput.addEventListener('change', async (event) => {
+        const file = event.target.files[0];
+        if (!file) return;
+        
         const formData = new FormData();
         formData.append('file', file);
         
-        console.log("2. A punto de hacer la llamada 'fetch' a:", API_URL + '/upload-data'); // Punto de control 2
-
         try {
-            const response = await fetch(`${API_URL}/upload-data`, {
-                method: 'POST',
-                body: formData,
-            });
-
-            console.log("3. Respuesta 'fetch' recibida. Estado:", response.status); // Punto de control 3
-
-            if (!response.ok) {
-                const errorData = await response.json();
-                console.error("Error del servidor:", errorData);
-                throw new Error(errorData.detail || 'Ocurrió un error en el servidor.');
-            }
-            
-            const result = await response.json();
-            console.log("4. Datos recibidos del servidor:", result); // Punto de control 4
-            
-            chartsContainer.style.display = 'grid';
-            renderAllComponents(result.data);
-
+            await fetchAPI('/upload-data', { method: 'POST', body: formData });
+            // Después de subir, recargar todo para ver los cambios
+            await fetchProfileAndData();
         } catch (error) {
-            console.error("ERROR CAPTURADO EN EL BLOQUE CATCH:", error); // Punto de control de error
-            alert(`Error en la comunicación con la API: ${error.message}`);
-        } finally {
-            console.log("5. Bloque 'finally' ejecutado. Ocultando cargador.");
-            loader.style.display = 'none';
+            alert(`Error: ${error.message}`);
         }
-    }
+    });
 
-    // --- RESTO DE FUNCIONES (Sin cambios, puedes dejarlas como están) ---
+    // (Aquí pegarías las mismas funciones de la vez anterior: renderAllComponents, calculateStats, displayStats, createCharts)
     function renderAllComponents(data) { /*...*/ }
-    function calculateStats(data) { /*...*/ }
-    function displayStats(stats) { /*...*/ }
-    function createCharts(data, stats) { /*...*/ }
-    function preventDefaults(e) { /*...*/ }
+    // ...
 
-    // ... (Copia aquí el resto de las funciones desde el código anterior)
+    // Verificar si el usuario ya ha iniciado sesión al cargar la página
+    if (localStorage.getItem('accessToken')) {
+        showDashboard();
+    }
     
-     // El resto del script...
-    function renderAllComponents(data) {
-        if (!data || data.length === 0) return;
-        const stats = calculateStats(data);
-        displayStats(stats);
-        createCharts(data, stats);
-    }
-    function calculateStats(data) {
-        const sistolica = data.map(d => d['PA Sistólica']); const diastolica = data.map(d => d['PA Diastólica']); const glucosa = data.map(d => d['Glucosa (mg/dL)']); const peso = data.map(d => d['Peso (kg)']);
-        return { lastSistolica: sistolica[sistolica.length - 1], lastDiastolica: diastolica[diastolica.length - 1], avgSistolica: (sistolica.reduce((a, b) => a + b, 0) / sistolica.length).toFixed(0), avgDiastolica: (diastolica.reduce((a, b) => a + b, 0) / diastolica.length).toFixed(0), lastGlucosa: glucosa[glucosa.length - 1], avgGlucosa: (glucosa.reduce((a, b) => a + b, 0) / glucosa.length).toFixed(0), lastPeso: peso[peso.length - 1], totalChangePeso: (peso[peso.length - 1] - peso[0]).toFixed(1) };
-    }
-    function displayStats(stats) {
-        document.getElementById('bp-stats').innerHTML = `<div class="stat"><p>Última</p><h3>${stats.lastSistolica} / ${stats.lastDiastolica}</h3></div><div class="stat"><p>Promedio</p><h3>${stats.avgSistolica} / ${stats.avgDiastolica}</h3></div>`; document.getElementById('glucose-stats').innerHTML = `<div class="stat"><p>Última</p><h3>${stats.lastGlucosa} mg/dL</h3></div><div class="stat"><p>Promedio</p><h3>${stats.avgGlucosa} mg/dL</h3></div>`; document.getElementById('weight-stats').innerHTML = `<div class="stat"><p>Último</p><h3>${stats.lastPeso} kg</h3></div><div class="stat"><p>Cambio</p><h3>${stats.totalChangePeso} kg</h3></div>`;
-    }
-    function createCharts(data, stats) {
-        const labels = data.map(d => d.Fecha);
-        bpCard.querySelector('canvas').remove(); glucoseCard.querySelector('canvas').remove(); weightCard.querySelector('canvas').remove();
-        bpCard.innerHTML += '<canvas id="bpChart"></canvas>'; glucoseCard.innerHTML += '<canvas id="glucoseChart"></canvas>'; weightCard.innerHTML += '<canvas id="weightChart"></canvas>';
-        new Chart(document.getElementById('bpChart').getContext('2d'), { type: 'line', data: { labels: labels, datasets: [{ label: 'Sistólica', data: data.map(d => d['PA Sistólica']), borderColor: 'rgba(211, 47, 47, 1)'}, { label: 'Diastólica', data: data.map(d => d['PA Diastólica']), borderColor: 'rgba(25, 118, 210, 1)'}]}}); new Chart(document.getElementById('glucoseChart').getContext('2d'), { type: 'line', data: { labels: labels, datasets: [{ label: 'Glucosa (mg/dL)', data: data.map(d => d['Glucosa (mg/dL)']), borderColor: 'rgba(56, 142, 60, 1)'}]}}); new Chart(document.getElementById('weightChart').getContext('2d'), { type: 'bar', data: { labels: labels, datasets: [{ label: 'Peso (kg)', data: data.map(d => d['Peso (kg)']), backgroundColor: 'rgba(123, 31, 162, 0.8)'}]}});
-    }
-    function preventDefaults(e) { e.preventDefault(); e.stopPropagation(); }
+    // --- Copia aquí el resto de funciones (renderAllComponents, etc.) desde la respuesta anterior ---
+    function renderAllComponents(data) { const stats = calculateStats(data); displayStats(stats); createCharts(data, stats); }
+    function calculateStats(data) { /*...*/}
+    function displayStats(stats) { /*...*/}
+    function createCharts(data, stats) { /*...*/}
     
-    // --- EVENT LISTENERS ---
-    dropArea.addEventListener('click', () => fileInput.click());
-    fileInput.addEventListener('change', (e) => handleFile(e.target.files[0]));
-    ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => dropArea.addEventListener(eventName, preventDefaults));
-    ['dragenter', 'dragover'].forEach(eventName => dropArea.addEventListener(eventName, () => dropArea.classList.add('highlight')));
-    ['dragleave', 'drop'].forEach(eventName => dropArea.addEventListener(eventName, () => dropArea.classList.remove('highlight')));
-    dropArea.addEventListener('drop', (e) => handleFile(e.dataTransfer.files[0]));
+    // Aquí el código completo por si acaso
+    function calculateStats(data) { const sistolica = data.map(d => d['PA Sistólica']); const diastolica = data.map(d => d['PA Diastólica']); const glucosa = data.map(d => d['Glucosa (mg/dL)']); const peso = data.map(d => d['Peso (kg)']); return { lastSistolica: sistolica[sistolica.length - 1], lastDiastolica: diastolica[diastolica.length - 1], avgSistolica: (sistolica.reduce((a, b) => a + b, 0) / sistolica.length).toFixed(0), avgDiastolica: (diastolica.reduce((a, b) => a + b, 0) / diastolica.length).toFixed(0), lastGlucosa: glucosa[glucosa.length - 1], avgGlucosa: (glucosa.reduce((a,b) => a+b, 0) / glucosa.length).toFixed(0), lastPeso: peso[peso.length - 1], totalChangePeso: (peso[peso.length-1] - peso[0]).toFixed(1) }; }
+    function displayStats(stats) { document.getElementById('bp-stats').innerHTML = `<div class="stat"><p>Última</p><h3>${stats.lastSistolica} / ${stats.lastDiastolica}</h3></div><div class="stat"><p>Promedio</p><h3>${stats.avgSistolica} / ${stats.avgDiastolica}</h3></div>`; document.getElementById('glucose-stats').innerHTML = `<div class="stat"><p>Última</p><h3>${stats.lastGlucosa} mg/dL</h3></div><div class="stat"><p>Promedio</p><h3>${stats.avgGlucosa} mg/dL</h3></div>`; document.getElementById('weight-stats').innerHTML = `<div class="stat"><p>Último</p><h3>${stats.lastPeso} kg</h3></div><div class="stat"><p>Cambio</p><h3>${stats.totalChangePeso} kg</h3></div>`; }
+    function createCharts(data, stats) { const labels = data.map(d => d.Fecha); const bpCard = document.getElementById('bpChart').parentElement; const glucoseCard = document.getElementById('glucoseChart').parentElement; const weightCard = document.getElementById('weightChart').parentElement; bpCard.querySelector('canvas').remove(); glucoseCard.querySelector('canvas').remove(); weightCard.querySelector('canvas').remove(); bpCard.innerHTML += '<canvas id="bpChart"></canvas>'; glucoseCard.innerHTML += '<canvas id="glucoseChart"></canvas>'; weightCard.innerHTML += '<canvas id="weightChart"></canvas>'; new Chart(document.getElementById('bpChart').getContext('2d'), { type: 'line', data: { labels: labels, datasets: [{ label: 'Sistólica', data: data.map(d => d['PA Sistólica']), borderColor: 'rgba(211, 47, 47, 1)'}, { label: 'Diastólica', data: data.map(d => d['PA Diastólica']), borderColor: 'rgba(25, 118, 210, 1)'}]}}); new Chart(document.getElementById('glucoseChart').getContext('2d'), { type: 'line', data: { labels: labels, datasets: [{ label: 'Glucosa (mg/dL)', data: data.map(d => d['Glucosa (mg/dL)']), borderColor: 'rgba(56, 142, 60, 1)'}]}}); new Chart(document.getElementById('weightChart').getContext('2d'), { type: 'bar', data: { labels: labels, datasets: [{ label: 'Peso (kg)', data: data.map(d => d['Peso (kg)']), backgroundColor: 'rgba(123, 31, 162, 0.8)'}]}}); }
 
-</script>
+    </script>
 </body>
 </html>
