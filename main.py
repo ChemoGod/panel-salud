@@ -1,4 +1,4 @@
-# main.py (Versión Corregida)
+od# main.py (Versión Corregida)
 
 from fastapi import Depends, FastAPI, HTTPException, status, UploadFile, File
 from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
@@ -40,7 +40,7 @@ class UserInDB(User):
     health_data: List[Dict] = []
 
 # 4. BASE DE DATOS Y UTILIDADES DE SEGURIDAD
-GITHUB_RAW_URL = "https://raw.githubusercontent.com/tu-usuario/tu-repo/main/" # <- ASEGÚRATE DE EDITAR ESTA LÍNEA
+GITHUB_RAW_URL = "https://raw.githubusercontent.com/chemogod/panel-salud/main/" # <- ASEGÚRATE DE EDITAR ESTA LÍNEA
 
 fake_users_db = {
     "paciente_a": {"username": "paciente_a", "full_name": "Ana García", "hashed_password": "$2b$12$EixZaY2Jz9pLws/5yLxl..NwkBSpj4Cwj5IEu3k01y5PbTcw6WbI.", "photo_url": GITHUB_RAW_URL + "user1_photo.png", "health_data": []},
